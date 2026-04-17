@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AniKami ⛩️ — Anime Streaming</title>
+  <meta name="description" content="AniKami — Portal anime terlengkap. Tonton, cari, dan diskusi anime favoritmu."/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#07070e;color:#f0ece4;font-family:'Noto Sans JP',sans-serif}
+    ::-webkit-scrollbar{width:5px}
+    ::-webkit-scrollbar-track{background:#07070e}
+    ::-webkit-scrollbar-thumb{background:linear-gradient(#cc2936,#d4af37);border-radius:10px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes modalIn{from{opacity:0;transform:translateY(24px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+    @keyframes float{from{transform:translateY(0) rotate(0deg)}to{transform:translateY(-18px) rotate(12deg)}}
+    @keyframes glowPulse{0%,100%{opacity:0.6}50%{opacity:1}}
+    @keyframes logoShine{0%{background-position:-200%}100%{background-position:200%}}
+    .card{transition:transform 0.22s ease,box-shadow 0.22s ease;cursor:pointer}
+    .card:hover{transform:translateY(-8px) scale(1.025);box-shadow:0 20px 60px rgba(204,41,54,0.28),0 0 0 1px rgba(212,175,55,0.2)}
+    .genre-pill{transition:all 0.15s;cursor:pointer;border:none}
+    .genre-pill:hover{background:rgba(212,175,55,0.15)!important;border-color:rgba(212,175,55,0.5)!important}
+    .btn-primary{transition:transform 0.12s,box-shadow 0.12s,opacity 0.12s;cursor:pointer}
+    .btn-primary:hover{transform:scale(1.05);box-shadow:0 0 20px rgba(212,175,55,0.35)}
+    .fade-grid{animation:fadeUp 0.42s ease}
+    .modal-overlay{animation:fadeIn 0.2s ease}
+    .modal-box{animation:modalIn 0.28s ease}
+    .top-item{transition:opacity 0.15s,background 0.15s;cursor:pointer;border-radius:10px;padding:8px}
+    .top-item:hover{opacity:0.75;background:rgba(212,175,55,0.06)}
+    input,textarea{outline:none}
+    textarea:focus,input:focus{border-color:rgba(212,175,55,0.5)!important;box-shadow:0 0 0 3px rgba(212,175,55,0.08)!important}
+    .search-box:focus{outline:none;border-color:rgba(212,175,55,0.5)!important;box-shadow:0 0 0 3px rgba(212,175,55,0.1)!important}
+    .nav-link{transition:color 0.15s,opacity 0.15s;cursor:pointer}
+    .nav-link:hover{color:#d4af37!important;opacity:1!important}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    const GENRES = [
+      { id: null,  name: "⛩ Semua"        },
+      { id: 1,     name: "⚔️ Action"       },
+      { id: 4,     name: "😂 Comedy"       },
+      { id: 8,     name: "🎭 Drama"        },
+      { id: 10,    name: "🧙 Fantasy"      },
+      { id: 14,    name: "👹 Horror"       },
+      { id: 22,    name: "💘 Romance"      },
+      { id: 24,    name: "🚀 Sci-Fi"       },
+      { id: 36,    name: "🍃 Slice of Life"},
+      { id: 37,    name: "✨ Supernatural" },
+    ];
+
+    const ToriiMark = () => (
+      <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
+        <rect x="2"  y="5"    width="24" height="3"  rx="1.5" fill="#d4af37"/>
+        <rect x="0"  y="9"    width="28" height="2.5" rx="1.25" fill="#d4af37"/>
+        <rect x="4"  y="11.5" width="3"  height="14" rx="1.5" fill="#d4af37"/>
+        <rect x="21" y="11.5" width="3"  height="14" rx="1.5" fill="#d4af37"/>
+      </svg>
+    );
+
+    const SakuraBg = () => (
+      <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,overflow:"hidden"}}>
+        {["5%,8%","85%,15%","90%,60%","50%,92%","70%,30%","30%,70%"].map((pos,i)=>(
+          <div key={i} style={{
+            position:"absolute",
+            left:pos.split(",")[0], top:pos.split(",")[1],
+            width:8+i*3, height:8+i*3,
+            borderRadius:"60% 40% 70% 30%/50% 60% 40% 50%",
+            background:"rgba(212,175,55,0.04)",
+            animation:`float ${6+i}s ease-in-out ${i*0.7}s infinite alternate`,
+          }}/>
+        ))}
+      </div>
+    );
+
+    /* ── AdsTerra Banner ── */
+    const AdBanner = ({ type, adKey }) => {
+      const ref = useRef(null);
+      useEffect(() => {
+        if (!ref.current || ref.current.childNodes.length > 0) return;
+        if (!adKey) return; // placeholder mode
+        const s1 = document.createElement("script");
+        s1.innerHTML = `atOptions={'key':'${adKey}','format':'iframe','height':${type==='rectangle'?250:90},'width':${type==='rectangle'?300:728},'params':{}};`;
+        const s2 = document.createElement("script");
+        s2.src = `//www.highperformanceformat.com/${adKey}/invoke.js`;
+        ref.current.appendChild(s1);
+        ref.current.appendChild(s2);
+      }, []);
+
+      if (!adKey) return (
+        <div style={{
+          width:"100%", height:type==='rectangle'?250:80, borderRadius:10,
+          background:"linear-gradient(135deg,#0a0a14,#13131f)",
+          border:"1px dashed rgba(212,175,55,0.18)",
+          display:"flex", flexDirection:"column",
+          alignItems:"center", justifyContent:"center", gap:4,
+        }}>
+          <span style={{color:"#d4af37",fontSize:10,letterSpacing:3,fontWeight:700}}>ADVERTISEMENT</span>
+          <span style={{color:"#333",fontSize:11}}>AdsTerra — Ganti dengan kode iklanmu</span>
+        </div>
+      );
+      return <div ref={ref} style={{width:"100%",minHeight:type==='rectangle'?250:90}}/>;
+    };
+
+    /* ─────────── GANTI DENGAN KODE ADSTERRA KAMU ─────────── */
+    const AD_KEY_LEADERBOARD = ""; // isi dengan key AdsTerra
+    const AD_KEY_RECTANGLE   = ""; // isi dengan key AdsTerra
+    /* ──────────────────────────────────────────────────────── */
+
+    const StarRating = ({ value, onChange, readonly }) => {
+      const [hover, setHover] = useState(0);
+      return (
+        <div style={{display:"flex",gap:2}}>
+          {[1,2,3,4,5].map(s=>(
+            <span key={s}
+              onClick={()=>!readonly&&onChange(s)}
+              onMouseEnter={()=>!readonly&&setHover(s)}
+              onMouseLeave={()=>!readonly&&setHover(0)}
+              style={{
+                fontSize:22, cursor:readonly?"default":"pointer",
+                color:s<=(hover||value)?"#d4af37":"#2a2a3a",
+                transition:"color 0.1s,transform 0.1s",
+                transform:!readonly&&s<=hover?"scale(1.35)":"scale(1)",
+                filter:s<=(hover||value)?"drop-shadow(0 0 4px rgba(212,175,55,0.6))":"none",
+              }}>★</span>
+          ))}
+        </div>
+      );
+    };
+
+    const SkeletonCard = () => (
+      <div style={{background:"#0e0e1a",borderRadius:14,overflow:"hidden",border:"1px solid rgba(212,175,55,0.06)"}}>
+        <div style={{paddingTop:"145%",background:"linear-gradient(90deg,#111120 25%,#1a1a28 50%,#111120 75%)",backgroundSize:"200% 100%",animation:"shimmer 1.4s infinite"}}/>
+        <div style={{padding:12}}>
+          <div style={{height:13,background:"#1a1a28",borderRadius:4,marginBottom:6}}/>
+          <div style={{height:11,background:"#1a1a28",borderRadius:4,width:"60%"}}/>
+        </div>
+      </div>
+    );
+
+    const GoldLine = () => (
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}>
+        <div style={{flex:1,height:1,background:"linear-gradient(90deg,transparent,rgba(212,175,55,0.4))"}}/>
+        <span style={{fontSize:14,color:"#d4af37",opacity:0.7}}>⛩</span>
+        <div style={{flex:1,height:1,background:"linear-gradient(90deg,rgba(212,175,55,0.4),transparent)"}}/>
+      </div>
+    );
+
+    /* ═══════════════════════════════════════════ MAIN APP ══ */
+    function AniKami() {
+      const [animeList,   setAnimeList]   = useState([]);
+      const [loading,     setLoading]     = useState(true);
+      const [searchQuery, setSearchQuery] = useState("");
+      const [selectedGenre, setSelectedGenre] = useState(null);
+      const [selectedAnime, setSelectedAnime] = useState(null);
+      const [comments,    setComments]    = useState({});
+      const [commentInput,setCommentInput]= useState("");
+      const [userName,    setUserName]    = useState("");
+      const [myRating,    setMyRating]    = useState(0);
+      const [searchTimer, setSearchTimer] = useState(null);
+      const [error,       setError]       = useState(null);
+      const [synopsisExp, setSynopsisExp] = useState(false);
+      const [scrolled,    setScrolled]    = useState(false);
+
+      useEffect(()=>{
+        const fn=()=>setScrolled(window.scrollY>40);
+        window.addEventListener("scroll",fn);
+        return()=>window.removeEventListener("scroll",fn);
+      },[]);
+
+      const fetchAnime = useCallback(async(query="",genre=null)=>{
+        setLoading(true); setError(null);
+        try{
+          const url = query||genre
+            ? `https://api.jikan.moe/v4/anime?limit=20&order_by=score&sort=desc${query?`&q=${encodeURIComponent(query)}`:""}${genre?`&genres=${genre}`:""}`
+            : "https://api.jikan.moe/v4/top/anime?limit=20&filter=bypopularity";
+          const res=await fetch(url);
+          const data=await res.json();
+          setAnimeList(data.data||[]);
+        }catch{ setError("Gagal memuat data. Coba refresh."); }
+        setLoading(false);
+      },[]);
+
+      useEffect(()=>{ fetchAnime("",selectedGenre); },[selectedGenre]);
+
+      const handleSearch=(e)=>{
+        const q=e.target.value; setSearchQuery(q);
+        clearTimeout(searchTimer);
+        setSearchTimer(setTimeout(()=>fetchAnime(q,selectedGenre),700));
+      };
+
+      const submitComment=()=>{
+        if(!commentInput.trim()) return;
+        const id=selectedAnime.mal_id;
+        setComments(prev=>({...prev,[id]:[...(prev[id]||[]),{
+          id:Date.now(), name:userName.trim()||"Anonim",
+          text:commentInput.trim(), rating:myRating,
+          time:new Date().toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"}),
+        }]}));
+        setCommentInput(""); setMyRating(0);
+      };
+
+      const getTrailer=(a)=>{
+        const u=a?.trailer?.embed_url;
+        if(!u) return null;
+        return u.includes("?")?u+"&autoplay=0&rel=0":u+"?autoplay=0&rel=0";
+      };
+
+      const getAvg=(id)=>{
+        const r=(comments[id]||[]).filter(c=>c.rating>0);
+        if(!r.length) return null;
+        return(r.reduce((a,c)=>a+c.rating,0)/r.length).toFixed(1);
+      };
+
+      const featured=animeList[0];
+
+      return (
+        <div style={{fontFamily:"'Noto Sans JP',sans-serif",background:"#07070e",minHeight:"100vh",color:"#f0ece4",position:"relative"}}>
+          <SakuraBg/>
+
+          {/* NAVBAR */}
+          <nav style={{
+            position:"sticky",top:0,zIndex:100,
+            background:scrolled?"rgba(7,7,14,0.97)":"rgba(7,7,14,0.85)",
+            backdropFilter:"blur(16px)",
+            borderBottom:"1px solid rgba(212,175,55,0.15)",
+            transition:"background 0.3s",
+          }}>
+            <div style={{maxWidth:1260,margin:"0 auto",padding:"0 20px",height:64,display:"flex",alignItems:"center",gap:20}}>
+              <div style={{flexShrink:0,display:"flex",alignItems:"center",gap:10,cursor:"pointer"}}>
+                <ToriiMark/>
+                <div style={{lineHeight:1}}>
+                  <div style={{
+                    fontFamily:"Cinzel",fontWeight:900,fontSize:22,letterSpacing:2,
+                    background:"linear-gradient(90deg,#cc2936,#d4af37,#cc2936)",
+                    backgroundSize:"200%",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",
+                    animation:"logoShine 4s linear infinite",
+                  }}>AniKami</div>
+                  <div style={{fontSize:8,letterSpacing:5,color:"#d4af37",opacity:0.6,marginTop:1}}>アニ神 · STREAMING</div>
+                </div>
+              </div>
+
+              <input className="search-box" type="text" placeholder="⛩ Cari anime..."
+                value={searchQuery} onChange={handleSearch}
+                style={{flex:1,maxWidth:380,padding:"8px 16px",borderRadius:999,
+                  background:"rgba(255,255,255,0.05)",border:"1px solid rgba(212,175,55,0.2)",
+                  color:"#f0ece4",fontSize:13,transition:"border-color 0.2s"}}/>
+
+              <button className="btn-primary" style={{
+                marginLeft:"auto",flexShrink:0,
+                background:"linear-gradient(135deg,#cc2936,#8b0000)",
+                border:"1px solid rgba(212,175,55,0.3)",
+                color:"#f0ece4",padding:"8px 18px",borderRadius:999,
+                fontSize:13,fontWeight:700,letterSpacing:0.5,
+              }}>神 Masuk</button>
+            </div>
+            <div style={{height:1,background:"linear-gradient(90deg,transparent,rgba(212,175,55,0.5),transparent)",animation:"glowPulse 3s ease-in-out infinite"}}/>
+          </nav>
+
+          {/* TOP AD */}
+          <div style={{maxWidth:1260,margin:"16px auto 0",padding:"0 20px"}}>
+            <AdBanner type="leaderboard" adKey={AD_KEY_LEADERBOARD}/>
+          </div>
+
+          {/* HERO */}
+          {featured&&!loading&&(
+            <div style={{maxWidth:1260,margin:"18px auto 0",padding:"0 20px"}}>
+              <div onClick={()=>{setSelectedAnime(featured);setSynopsisExp(false);}}
+                style={{position:"relative",borderRadius:20,overflow:"hidden",
+                  height:"clamp(220px,38vw,380px)",cursor:"pointer",
+                  background:`url(${featured.images?.jpg?.large_image_url}) center/cover no-repeat`,
+                  border:"1px solid rgba(212,175,55,0.12)"}}>
+                <div style={{position:"absolute",inset:0,background:"linear-gradient(100deg,rgba(7,7,14,0.97) 30%,rgba(7,7,14,0.35) 75%,transparent)"}}/>
+                <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(7,7,14,0.85) 0%,transparent 55%)"}}/>
+                <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:"linear-gradient(to bottom,transparent,#d4af37,transparent)"}}/>
+                <div style={{position:"absolute",top:18,left:38,background:"linear-gradient(90deg,#d4af37,#b8860b)",color:"#07070e",padding:"3px 12px",borderRadius:999,fontSize:10,fontWeight:900,letterSpacing:2}}>
+                  ✦ UNGGULAN
+                </div>
+                <div style={{position:"absolute",bottom:32,left:40,maxWidth:520}}>
+                  <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
+                    {(featured.genres||[]).slice(0,4).map(g=>(
+                      <span key={g.mal_id} style={{background:"rgba(204,41,54,0.8)",border:"1px solid rgba(212,175,55,0.3)",fontSize:10,padding:"2px 10px",borderRadius:999,fontWeight:700,letterSpacing:1}}>{g.name}</span>
+                    ))}
+                  </div>
+                  <h1 style={{fontFamily:"Cinzel",fontSize:"clamp(20px,3.5vw,42px)",fontWeight:900,lineHeight:1.05,marginBottom:8}}>{featured.title}</h1>
+                  <p style={{fontSize:13,lineHeight:1.7,opacity:0.7,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden",marginBottom:18}}>{featured.synopsis}</p>
+                  <button className="btn-primary" style={{background:"linear-gradient(135deg,#cc2936,#8b0000)",border:"1px solid rgba(212,175,55,0.4)",color:"#f0ece4",padding:"10px 26px",borderRadius:12,fontWeight:700,fontSize:14}}>
+                    ▶ Tonton Sekarang
+                  </button>
+                </div>
+                <div style={{position:"absolute",top:18,right:22,background:"rgba(7,7,14,0.85)",borderRadius:12,padding:"8px 14px",border:"1px solid rgba(212,175,55,0.3)",display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{color:"#d4af37",fontSize:18,filter:"drop-shadow(0 0 6px rgba(212,175,55,0.7))"}}>★</span>
+                  <div>
+                    <div style={{fontFamily:"Cinzel",fontSize:18,fontWeight:700,lineHeight:1}}>{featured.score}</div>
+                    <div style={{fontSize:9,opacity:0.4,letterSpacing:1}}>MAL SCORE</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MAIN */}
+          <div style={{maxWidth:1260,margin:"28px auto 0",padding:"0 20px",display:"flex",gap:24,position:"relative",zIndex:1}}>
+            <div style={{flex:1,minWidth:0}}>
+
+              {/* Genre Pills */}
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:24}}>
+                {GENRES.map(g=>(
+                  <button key={String(g.id)} className="genre-pill"
+                    onClick={()=>{setSelectedGenre(g.id);setSearchQuery("");}}
+                    style={{padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:700,letterSpacing:0.5,
+                      background:selectedGenre===g.id?"linear-gradient(135deg,#cc2936,#8b0000)":"rgba(212,175,55,0.06)",
+                      border:`1px solid ${selectedGenre===g.id?"rgba(212,175,55,0.5)":"rgba(212,175,55,0.18)"}`,
+                      color:selectedGenre===g.id?"#f0ece4":"#b8a070",
+                      boxShadow:selectedGenre===g.id?"0 0 16px rgba(204,41,54,0.3)":"none"}}>
+                    {g.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Heading */}
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}>
+                <div style={{width:3,height:22,background:"linear-gradient(to bottom,#cc2936,#d4af37)",borderRadius:2}}/>
+                <h2 style={{fontFamily:"Cinzel",fontSize:17,fontWeight:700,letterSpacing:1,color:"#d4af37"}}>
+                  {searchQuery?`Hasil: "${searchQuery}"`:selectedGenre?GENRES.find(g=>g.id===selectedGenre)?.name:"⛩ Anime Terpopuler"}
+                </h2>
+              </div>
+
+              {error&&<div style={{textAlign:"center",padding:60,color:"#cc2936",opacity:0.8}}><div style={{fontSize:40,marginBottom:12}}>⛩️</div><p>{error}</p></div>}
+
+              {/* Grid */}
+              <div className={loading?"":"fade-grid"} style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:14}}>
+                {loading
+                  ? Array(16).fill(0).map((_,i)=><SkeletonCard key={i}/>)
+                  : animeList.map(anime=>(
+                    <div key={anime.mal_id} className="card"
+                      onClick={()=>{setSelectedAnime(anime);setSynopsisExp(false);}}
+                      style={{background:"#0e0e1a",borderRadius:14,overflow:"hidden",border:"1px solid rgba(212,175,55,0.07)"}}>
+                      <div style={{position:"relative",paddingTop:"145%"}}>
+                        <img src={anime.images?.jpg?.large_image_url||anime.images?.jpg?.image_url} alt={anime.title}
+                          style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>
+                        <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(7,7,14,0.65) 0%,transparent 55%)"}}/>
+                        <span style={{position:"absolute",top:7,left:7,background:"rgba(204,41,54,0.9)",fontSize:9,padding:"2px 7px",borderRadius:6,fontWeight:700,letterSpacing:1}}>{anime.type||"?"}</span>
+                        <span style={{position:"absolute",top:7,right:7,background:"rgba(7,7,14,0.85)",border:"1px solid rgba(212,175,55,0.3)",fontSize:11,padding:"2px 7px",borderRadius:6,fontWeight:700,color:"#d4af37"}}>★ {anime.score??"N/A"}</span>
+                      </div>
+                      <div style={{padding:"10px 12px"}}>
+                        <p style={{fontWeight:500,fontSize:12,lineHeight:1.35,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden",marginBottom:4}}>{anime.title}</p>
+                        <p style={{fontSize:11,color:"#6a6050"}}>{anime.episodes?`${anime.episodes} Ep`:"—"} · {anime.year||"—"}</p>
+                      </div>
+                    </div>
+                  ))
+                }
+              </div>
+
+              {!loading&&!error&&animeList.length===0&&(
+                <div style={{textAlign:"center",padding:80,opacity:0.35}}>
+                  <div style={{fontSize:52,marginBottom:12}}>⛩️</div>
+                  <p style={{fontFamily:"Cinzel"}}>Anime tidak ditemukan</p>
+                </div>
+              )}
+            </div>
+
+            {/* SIDEBAR */}
+            <div style={{width:270,flexShrink:0,display:"flex",flexDirection:"column",gap:20}}>
+              <AdBanner type="rectangle" adKey={AD_KEY_RECTANGLE}/>
+
+              {!loading&&animeList.length>0&&(
+                <div style={{background:"#0e0e1a",borderRadius:16,padding:20,border:"1px solid rgba(212,175,55,0.1)"}}>
+                  <h3 style={{fontFamily:"Cinzel",fontSize:13,color:"#d4af37",letterSpacing:3,marginBottom:14,textAlign:"center"}}>⛩ RANKING DEWA</h3>
+                  <GoldLine/>
+                  {animeList.slice(0,8).map((a,i)=>(
+                    <div key={a.mal_id} className="top-item"
+                      onClick={()=>{setSelectedAnime(a);setSynopsisExp(false);}}
+                      style={{display:"flex",gap:10,alignItems:"center",marginBottom:4}}>
+                      <span style={{fontFamily:"Cinzel",fontSize:18,fontWeight:900,width:24,flexShrink:0,textAlign:"center",
+                        color:i===0?"#d4af37":i===1?"#c0c0c0":i===2?"#cd7f32":"#2a2a3a",
+                        textShadow:i<3?"0 0 10px currentColor":"none"}}>{i+1}</span>
+                      <img src={a.images?.jpg?.image_url} alt="" style={{width:36,height:52,objectFit:"cover",borderRadius:7,flexShrink:0,border:"1px solid rgba(212,175,55,0.1)"}}/>
+                      <div style={{minWidth:0}}>
+                        <p style={{fontSize:11,fontWeight:600,lineHeight:1.3,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden",marginBottom:3}}>{a.title}</p>
+                        <p style={{fontSize:11,color:"#d4af37",filter:"drop-shadow(0 0 4px rgba(212,175,55,0.4))"}}>★ {a.score}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <AdBanner type="rectangle" adKey={AD_KEY_RECTANGLE}/>
+            </div>
+          </div>
+
+          {/* BOTTOM AD */}
+          <div style={{maxWidth:1260,margin:"28px auto 0",padding:"0 24px 36px",position:"relative",zIndex:1}}>
+            <AdBanner type="leaderboard" adKey={AD_KEY_LEADERBOARD}/>
+          </div>
+
+          {/* FOOTER */}
+          <footer style={{borderTop:"1px solid rgba(212,175,55,0.1)",padding:"30px 24px",textAlign:"center",position:"relative",zIndex:1}}>
+            <div style={{marginBottom:10}}><ToriiMark/></div>
+            <p style={{fontFamily:"Cinzel",fontSize:22,fontWeight:900,marginBottom:4,
+              background:"linear-gradient(90deg,#cc2936,#d4af37)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>AniKami</p>
+            <p style={{fontSize:10,letterSpacing:5,color:"#d4af37",opacity:0.45,marginBottom:14}}>アニ神 · ANIME STREAMING</p>
+            <p style={{fontSize:11,opacity:0.2}}>© 2025 AniKami · Data dari MyAnimeList via Jikan API</p>
+          </footer>
+
+          {/* MODAL */}
+          {selectedAnime&&(
+            <div className="modal-overlay"
+              onClick={e=>e.target===e.currentTarget&&setSelectedAnime(null)}
+              style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:200,overflowY:"auto",padding:"24px 14px"}}>
+              <div className="modal-box" style={{maxWidth:860,margin:"0 auto",background:"#0c0c18",borderRadius:22,overflow:"hidden",border:"1px solid rgba(212,175,55,0.15)",boxShadow:"0 0 80px rgba(204,41,54,0.12)"}}>
+                <div style={{height:3,background:"linear-gradient(90deg,#cc2936,#d4af37,#cc2936)"}}/>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 24px 0"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <ToriiMark/>
+                    <span style={{fontFamily:"Cinzel",fontSize:13,color:"#d4af37",letterSpacing:2}}>AniKami</span>
+                  </div>
+                  <button onClick={()=>setSelectedAnime(null)} style={{background:"rgba(212,175,55,0.08)",border:"1px solid rgba(212,175,55,0.2)",color:"#d4af37",width:36,height:36,borderRadius:999,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+                </div>
+
+                <div style={{padding:"18px 26px 32px"}}>
+                  {getTrailer(selectedAnime)?(
+                    <div style={{position:"relative",paddingTop:"56.25%",borderRadius:14,overflow:"hidden",marginBottom:22,background:"#000",border:"1px solid rgba(212,175,55,0.1)"}}>
+                      <iframe src={getTrailer(selectedAnime)} style={{position:"absolute",inset:0,width:"100%",height:"100%",border:"none"}} allowFullScreen title={selectedAnime.title}/>
+                    </div>
+                  ):(
+                    <div style={{height:180,borderRadius:14,marginBottom:22,background:"linear-gradient(135deg,#0a0a14,#13131f)",border:"1px dashed rgba(212,175,55,0.15)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8}}>
+                      <span style={{fontSize:44}}>⛩️</span>
+                      <p style={{opacity:0.35,fontSize:13,fontFamily:"Cinzel"}}>Trailer belum tersedia</p>
+                    </div>
+                  )}
+
+                  <AdBanner type="leaderboard" adKey={AD_KEY_LEADERBOARD}/>
+                  <div style={{marginBottom:20}}/>
+
+                  <div style={{display:"flex",gap:22,marginBottom:28}}>
+                    <img src={selectedAnime.images?.jpg?.large_image_url} alt="" style={{width:125,height:178,objectFit:"cover",borderRadius:14,flexShrink:0,border:"2px solid rgba(212,175,55,0.25)",boxShadow:"0 8px 40px rgba(0,0,0,0.6)"}}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <h2 style={{fontFamily:"Cinzel",fontSize:"clamp(16px,3vw,28px)",fontWeight:900,lineHeight:1.1,marginBottom:6}}>{selectedAnime.title}</h2>
+                      {selectedAnime.title_english&&selectedAnime.title_english!==selectedAnime.title&&(
+                        <p style={{fontSize:13,color:"#6a6050",marginBottom:10,fontStyle:"italic"}}>{selectedAnime.title_english}</p>
+                      )}
+                      <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:14}}>
+                        {(selectedAnime.genres||[]).map(g=>(
+                          <span key={g.mal_id} style={{background:"rgba(212,175,55,0.08)",border:"1px solid rgba(212,175,55,0.25)",fontSize:11,padding:"2px 10px",borderRadius:999,color:"#d4af37",fontWeight:600}}>{g.name}</span>
+                        ))}
+                      </div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:14,marginBottom:14,fontSize:13,color:"#8a8070"}}>
+                        <span>📺 {selectedAnime.type||"?"}</span>
+                        <span>🎬 {selectedAnime.episodes||"?"} Ep</span>
+                        <span>📅 {selectedAnime.year||"?"}</span>
+                        <span style={{color:"#d4af37",fontWeight:700}}>★ {selectedAnime.score||"N/A"}/10</span>
+                      </div>
+                      {getAvg(selectedAnime.mal_id)&&(
+                        <div style={{marginBottom:12}}>
+                          <StarRating value={Number(getAvg(selectedAnime.mal_id))} readonly/>
+                          <p style={{fontSize:12,color:"#5a5040",marginTop:4}}>Rating AniKami: ★ {getAvg(selectedAnime.mal_id)}/5</p>
+                        </div>
+                      )}
+                      <p style={{fontSize:13,lineHeight:1.8,color:"#a09080",
+                        display:synopsisExp?"block":"-webkit-box",
+                        WebkitLineClamp:synopsisExp?undefined:4,
+                        WebkitBoxOrient:"vertical",overflow:synopsisExp?"visible":"hidden"}}>
+                        {selectedAnime.synopsis||"Tidak ada sinopsis."}
+                      </p>
+                      {selectedAnime.synopsis?.length>300&&(
+                        <button onClick={()=>setSynopsisExp(p=>!p)} style={{marginTop:6,background:"none",border:"none",color:"#d4af37",fontSize:13,cursor:"pointer",fontWeight:700}}>
+                          {synopsisExp?"▲ Sembunyikan":"▼ Baca Selengkapnya"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <GoldLine/>
+                  <h3 style={{fontFamily:"Cinzel",fontSize:18,fontWeight:700,marginBottom:20,color:"#d4af37",display:"flex",alignItems:"center",gap:10}}>
+                    💬 Komentar Para Dewa
+                    <span style={{fontSize:13,color:"#5a5040",fontFamily:"Noto Sans JP",fontWeight:400}}>{(comments[selectedAnime.mal_id]||[]).length} komentar</span>
+                  </h3>
+
+                  <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:26}}>
+                    {(comments[selectedAnime.mal_id]||[]).length===0
+                      ? <p style={{opacity:0.3,fontSize:14,fontStyle:"italic"}}>Belum ada komentar. Jadilah yang pertama! ⛩</p>
+                      : (comments[selectedAnime.mal_id]||[]).map(c=>(
+                        <div key={c.id} style={{background:"rgba(212,175,55,0.04)",borderRadius:12,padding:"14px 18px",border:"1px solid rgba(212,175,55,0.1)"}}>
+                          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                            <span style={{fontWeight:700,color:"#d4af37",fontSize:14}}>⛩ {c.name}</span>
+                            <span style={{fontSize:11,color:"#3a3028"}}>{c.time}</span>
+                          </div>
+                          {c.rating>0&&<div style={{marginBottom:6}}><StarRating value={c.rating} readonly/></div>}
+                          <p style={{fontSize:14,lineHeight:1.7,color:"#a09080"}}>{c.text}</p>
+                        </div>
+                      ))
+                    }
+                  </div>
+
+                  <div style={{background:"rgba(212,175,55,0.03)",borderRadius:14,padding:20,border:"1px solid rgba(212,175,55,0.1)"}}>
+                    <h4 style={{fontFamily:"Cinzel",fontSize:15,color:"#d4af37",marginBottom:16,letterSpacing:1}}>✍️ Tulis Komentar</h4>
+                    <input type="text" placeholder="Nama kamu (opsional)" value={userName} onChange={e=>setUserName(e.target.value)}
+                      style={{width:"100%",padding:"9px 13px",marginBottom:12,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(212,175,55,0.15)",borderRadius:9,color:"#f0ece4",fontSize:13}}/>
+                    <div style={{marginBottom:12}}>
+                      <p style={{fontSize:12,color:"#5a5040",marginBottom:8,letterSpacing:0.5}}>BERI RATING:</p>
+                      <StarRating value={myRating} onChange={setMyRating}/>
+                    </div>
+                    <textarea placeholder="Bagaimana pendapatmu tentang anime ini?..." value={commentInput} onChange={e=>setCommentInput(e.target.value)} rows={3}
+                      style={{width:"100%",padding:"10px 13px",marginBottom:14,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(212,175,55,0.15)",borderRadius:9,color:"#f0ece4",fontSize:13,resize:"vertical",fontFamily:"Noto Sans JP",lineHeight:1.7}}/>
+                    <button className="btn-primary" onClick={submitComment}
+                      style={{background:"linear-gradient(135deg,#cc2936,#8b0000)",border:"1px solid rgba(212,175,55,0.35)",color:"#f0ece4",padding:"10px 28px",borderRadius:11,fontWeight:700,fontSize:14,letterSpacing:1,fontFamily:"Cinzel"}}>
+                      ⛩ Kirim
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<AniKami/>);
+  </script>
+</body>
+</html>
